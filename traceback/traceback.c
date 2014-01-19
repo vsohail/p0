@@ -12,22 +12,26 @@
 #include <string.h>
 #include <limits.h>
 #include <ctype.h>
+#include <sys/mman.h>
+#include <unistd.h>
+#include <sys/types.h>
 
 int get_func(void *ret);
 void traceback(FILE *fp);
+void get_string_array(char **str_array,char *buf,void *addr);
 void get_string(char *str,char *buf,void *addr);
 void get_argument_details(char *buf,const argsym_t *arg,void *ebp);
 void get_details(char *buf,const functsym_t *func,void *ebp);
 
 int get_func(void* ret)
 {
-  int i,index;
+  int i,index=-1;
   int min=INT_MAX;
   for(i=0;i<FUNCTS_MAX_NUM;i++) {
     if(strlen(functions[i].name)==0)
       break;
     int diff=ret-functions[i].addr;
-    if(diff<min && diff>=0) {
+    if(diff<min && diff>=0 && diff<=MAX_FUNCTION_SIZE_BYTES) {
       min=diff;
       index=i;
     }
@@ -38,7 +42,7 @@ int get_func(void* ret)
 void get_details(char* buf,const functsym_t* func,void *ebp)
 {
   int i;
-  sprintf(buf,"Function %s(",func->name);
+  sprintf(buf,"%sFunction %s(",buf,func->name);
   for(i=0;i<ARGS_MAX_NUM;++i) {
     if(strlen(func->args[i].name)==0)
       break;
@@ -81,23 +85,51 @@ void get_argument_details(char* buf,const argsym_t *arg,void* ebp)
       break;
     case TYPE_STRING_ARRAY:
       sprintf(buf,"%schar **%s=",buf,arg->name);
+      get_string_array((char **)((long)(*((int *)addr))),buf,addr);
       break;
     default:
       sprintf(buf,"%sUNKNOWN %s=%p",buf,arg->name,addr);
   }
 }
 
-void get_string(char *str,char *buf,void *addr)
+void get_string_array(char **str_array,char *buf,void *addr)
 {
   int i;
-  int len=strlen(str);
+  sprintf(buf,"%s{",buf);
+  for(i=0;i<3;i++) {
+    if(*str_array==NULL) {
+      break;
+    }
+    get_string(*str_array,buf,addr);
+    str_array++;
+    if(i!=2 && *str_array!=NULL) {
+      sprintf(buf,"%s, ",buf);
+    }
+  }
+  if(i==3 && *str_array!=NULL) {
+    sprintf(buf,"%s, ...",buf);
+  }
+  sprintf(buf,"%s}",buf);
+}
+void get_string(char *str,char *buf,void *addr)
+{
+  int i,len;
   char *temp = str;
-  for(i=0;i<len && i<25;i++,temp+=1) {
+  for(i=0;;i++,temp+=1) {
+    if(write(0,temp,1)<0) {
+      sprintf(buf,"%s%p",buf,addr);
+      return;
+    }
+    write(0,"\r",1);
+    if(*temp=='\0'){
+      break;
+    }
     if(!isprint(*temp)) {
       sprintf(buf,"%s%p",buf,addr);
       return;
     }
   }
+  len=strlen(str);
   temp=str;
   sprintf(buf,"%s\"",buf);
   if(len>25) {
@@ -106,7 +138,15 @@ void get_string(char *str,char *buf,void *addr)
     sprintf(buf,"%s...\"",buf);
     return;
   }
-  sprintf(buf,"%s%s\"",buf,str);
+  else if(len>0){
+    for(i=0;i<len;i++,temp+=1)
+      sprintf(buf,"%s%c",buf,*temp);
+    sprintf(buf,"%s\"",buf);
+    return;
+  }
+  else {
+    sprintf(buf,"%s\"",buf);
+  }
 }
 
 void traceback(FILE *fp)
@@ -119,9 +159,13 @@ void traceback(FILE *fp)
     ret=(void*)(long)*(int *)(ebp+4);
     ebp=(void*)(long)*(int *)ebp;
     index=get_func(ret);
+    if(index==-1) {
+      sprintf(buf,"%sFunction %p(...), in\n",buf,ret);
+      continue;
+    }
     if(strcmp(functions[index].name,"__libc_start_main")==0)
-      return;
+      break;
     get_details(buf,&functions[index],ebp);
-    fprintf(fp,"%s",buf);
   }
+  fprintf(fp,"%s",buf);
 }
