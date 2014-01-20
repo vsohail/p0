@@ -15,14 +15,17 @@
 #include <sys/mman.h>
 #include <unistd.h>
 #include <sys/types.h>
+#include <stdarg.h>
+#define BUFFER_SIZE 1000
 
 int get_func(void *ret);
 void traceback(FILE *fp);
-void get_string_array(char **str_array,char *buf,void *addr);
-void get_string(char *str,char *buf,void *addr);
-void get_argument_details(char *buf,const argsym_t *arg,void *ebp);
-void get_details(char *buf,const functsym_t *func,void *ebp);
-
+void get_string_array(char **str_array,void *addr);
+void get_string(char *str,void *addr);
+void get_argument_details(const argsym_t *arg,void *ebp);
+void get_details(const functsym_t *func,void *ebp);
+char buf[BUFFER_SIZE];
+char *temp=buf;
 int get_func(void* ret)
 {
   int i,index=-1;
@@ -39,85 +42,93 @@ int get_func(void* ret)
   return index;
 }
 
-void get_details(char* buf,const functsym_t* func,void *ebp)
+void str_join(char *format,... )
+{
+  va_list args;
+  va_start (args, format);
+  temp+=vsnprintf(temp,BUFFER_SIZE,format,args);
+  va_end (args);
+}
+
+void get_details(const functsym_t* func,void *ebp)
 {
   int i;
-  sprintf(buf,"%sFunction %s(",buf,func->name);
+  str_join("Function %s(",func->name);
   for(i=0;i<ARGS_MAX_NUM;++i) {
     if(strlen(func->args[i].name)==0)
       break;
     if(i>0)
-      sprintf(buf,"%s, ",buf);
-    get_argument_details(buf,&func->args[i],ebp);
+      str_join(", ");
+    get_argument_details(&func->args[i],ebp);
   }
   if(i==0) {
-    sprintf(buf,"%svoid",buf);
+    str_join("void");
   }
-  sprintf(buf,"%s), in\n",buf);
+  str_join("), in\n");
 }
 
-void get_argument_details(char* buf,const argsym_t *arg,void* ebp)
+void get_argument_details(const argsym_t *arg,void* ebp)
 {
   void *addr = arg->offset+ebp;
   switch (arg->type) {
     case TYPE_VOIDSTAR:
-      sprintf(buf,"%svoid *%s=0v%x",buf,arg->name,(unsigned int)(*(int *)addr));
+      str_join("void *%s=0v%x",arg->name,(unsigned int)(*(int *)addr));
       break;
     case TYPE_INT:
-      sprintf(buf,"%sint %s=%d",buf,arg->name,*((int *)addr));
+      str_join("int %s=%d",arg->name,*((int *)addr));
       break;
     case TYPE_FLOAT:
-      sprintf(buf,"%sfloat %s=%f",buf,arg->name,*((float *)addr));
+      str_join("float %s=%f",arg->name,*((float *)addr));
       break;
     case TYPE_DOUBLE:
-      sprintf(buf,"%sdouble %s=%f",buf,arg->name,*((double *)addr));
+      str_join("double %s=%f",arg->name,*((double *)addr));
       break;
     case TYPE_CHAR:
-      sprintf(buf,"%schar %s=",buf,arg->name);
+      str_join("char %s=",arg->name);
       if(isprint(*((char *)addr)))
-        sprintf(buf,"%s'%c'",buf,*((char *)addr));
+        str_join("'%c'",*((char *)addr));
       else
-        sprintf(buf,"%s'\\%o'",buf,*((char *)addr));
+        str_join("'\\%o'",*((char *)addr));
       break;
     case TYPE_STRING:
-      sprintf(buf,"%schar *%s=",buf,arg->name);
-      get_string((char *)((long)(*((int *)addr))),buf,addr);
+      str_join("char *%s=",arg->name);
+      get_string((char *)((long)(*((int *)addr))),addr);
       break;
     case TYPE_STRING_ARRAY:
-      sprintf(buf,"%schar **%s=",buf,arg->name);
-      get_string_array((char **)((long)(*((int *)addr))),buf,addr);
+      str_join("char **%s=",arg->name);
+      get_string_array((char **)((long)(*((int *)addr))),addr);
       break;
     default:
-      sprintf(buf,"%sUNKNOWN %s=%p",buf,arg->name,addr);
+      str_join("UNKNOWN %s=%p",arg->name,addr);
   }
 }
 
-void get_string_array(char **str_array,char *buf,void *addr)
+void get_string_array(char **str_array,void *addr)
 {
   int i;
-  sprintf(buf,"%s{",buf);
+  str_join("{");
   for(i=0;i<3;i++) {
     if(*str_array==NULL) {
       break;
     }
-    get_string(*str_array,buf,addr);
+    get_string(*str_array,addr);
     str_array++;
     if(i!=2 && *str_array!=NULL) {
-      sprintf(buf,"%s, ",buf);
+      str_join(", ");
     }
   }
   if(i==3 && *str_array!=NULL) {
-    sprintf(buf,"%s, ...",buf);
+    str_join(", ...");
   }
-  sprintf(buf,"%s}",buf);
+  str_join("}");
 }
-void get_string(char *str,char *buf,void *addr)
+void get_string(char *str,void *addr)
 {
   int i,len;
   char *temp = str;
   for(i=0;;i++,temp+=1) {
     if(write(0,temp,1)<0) {
-      sprintf(buf,"%s%p",buf,addr);
+      str_join("%p",addr);
       return;
     }
     write(0,"\r",1);
@@ -125,27 +136,27 @@ void get_string(char *str,char *buf,void *addr)
       break;
     }
     if(!isprint(*temp)) {
-      sprintf(buf,"%s%p",buf,addr);
+      str_join("%p",addr);
       return;
     }
   }
   len=strlen(str);
   temp=str;
-  sprintf(buf,"%s\"",buf);
+  str_join("\"");
   if(len>25) {
     for(i=0;i<25;i++,temp+=1)
-      sprintf(buf,"%s%c",buf,*temp);
-    sprintf(buf,"%s...\"",buf);
+      str_join("%c",*temp);
+    str_join("...\"");
     return;
   }
   else if(len>0){
     for(i=0;i<len;i++,temp+=1)
-      sprintf(buf,"%s%c",buf,*temp);
-    sprintf(buf,"%s\"",buf);
+      str_join("%c",*temp);
+    str_join("\"");
     return;
   }
   else {
-    sprintf(buf,"%s\"",buf);
+    str_join("\"");
   }
 }
 
@@ -154,18 +165,17 @@ void traceback(FILE *fp)
   int index;
   void* ebp = ebp_addr();
   void *ret;
-  char buf[1000];
   while(1) {
     ret=(void*)(long)*(int *)(ebp+4);
     ebp=(void*)(long)*(int *)ebp;
     index=get_func(ret);
     if(index==-1) {
-      sprintf(buf,"%sFunction %p(...), in\n",buf,ret);
+      str_join("Function %p(...), in\n",ret);
       continue;
     }
     if(strcmp(functions[index].name,"__libc_start_main")==0)
       break;
-    get_details(buf,&functions[index],ebp);
+    get_details(&functions[index],ebp);
   }
   fprintf(fp,"%s",buf);
 }
