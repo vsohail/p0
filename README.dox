@@ -1,0 +1,15 @@
+/**
+
+@mainpage 15-410 Project 0
+
+@author Sohil Habib (snhabib)
+
+A basic stack crawler in C to check the current caller stack and parse
+the functions array based on the formatting specifications to indentify
+current stack state and behaviour
+
+It was a good warm up project after 213 last semester. Also rekindled some of
+my concepts. Most importantly it made me realise that unlike 213, a lot of the
+design decisions, in this course are left upto me and thats really awesome.
+
+*/
