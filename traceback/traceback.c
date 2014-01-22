@@ -80,9 +80,9 @@ int get_func(void* ret)
  *  The function accepts variable args which are processed as per the format
  *  specified and then input into the vsnprintf function. The return value
  *  of vsnprintf is the number of bytes it printed and this is incrememted
- *  to my buffer pointer so that the next call will append it to the same buffer.
- *  I got this implementation from stack overflow when i was searching for a wrapper
- *  for snprintf.
+ *  to my buffer pointer so that the next call will append it to the same
+ *  buffer. I got this implementation from stack overflow when i was
+ *  searching for a wrapper for snprintf.
  *
  *  @param format The format of the variable arguments.
  *  @param ... variable arguments to vsnprintf.
@@ -97,11 +97,13 @@ void str_join(char *format,... )
 }
 
 /** @brief get_details is the function parser which takes a function from
- *         the functions array and processes all the arguments that function takes
+ *         the functions array and processes all the arguments that function
+ *         takes
  *
  *  The function iterates over the arguments struct for that function and calls
- *  procedures to parse those arguments one by one till all the arguments have been processed.
- *  It also formats the buffer accordingly and prints void if the function has no arguments
+ *  procedures to parse those arguments one by one till all the arguments have
+ *  been processed. It also formats the buffer accordingly and prints void if
+ *  the function has no arguments
  *
  *  @param func the function to process from the functions array
  *  @param ebp the ebp value of the current stack frame
@@ -124,14 +126,17 @@ void get_details(const functsym_t* func,void *ebp)
   str_join("), in\n");
 }
 
-/** @brief get_argument_details is used to extract data from the args struct for each argument.
+/** @brief get_argument_details is used to extract data from the args struct for
+ *         each argument.
  *
- *  This function takes in an argument struct and then based on the type of the argument, it
- *  treats it as per the requirements. If it is unknown it just goes forward and prints its
- *  type as unknown and prints its address. The string and string array tpes are handled with their
- *  own separate functions.
+ *  This function takes in an argument struct and then based on the type of the
+ *  argument, it treats it as per the requirements. If it is unknown it just
+ *  goes forward and prints its type as unknown and prints its address.
+ *  The string and string array tpes are handled with their own separate
+ *  functions.
  *
- *  @param arg The argument struct of an argument for the corresponding function.
+ *  @param arg The argument struct of an argument for the corresponding
+ *             function.
  *  @param the ebp of the current stack frame to calculate argument offset.
  *  @return Void.
  */
@@ -171,12 +176,13 @@ void get_argument_details(const argsym_t *arg,void* ebp)
   }
 }
 
-/** @brief get_string_array handles string arrays and formats the buffer to display
- *         all the strings it contains in the array
+/** @brief get_string_array handles string arrays and formats
+ *         the buffer to display all the strings it contains in the array
  *
- *  The function takes a char ** as input and checks the array for at most 4 values
- *  The array elements are considered valid/invalid as per the handout specifications
- *  and the strings extracted are passed on to the get_string function to be processed.
+ *  The function takes a char ** as input and checks the array for at most
+ *  4 values .The array elements are considered valid/invalid as per the
+ *  handout specifications and the strings extracted are passed on to 
+ *  the get_string function to be processed.
  *
  *  @param str_array The string array to be processed.
  *  @param addr the address on stack of the string array
@@ -206,8 +212,9 @@ void get_string_array(char **str_array,void *addr)
  *
  *  Each byte of the string is first checked to be a valid memory location with
  *  the help of the write syscall and when a '\0' is encountered, the string
- *  is processed based on its length. The string is also checked for printable/unprintable
- *  characters and the appropriate formatting is done as per the handout
+ *  is processed based on its length. The string is also checked for
+ *  printable/unprintable characters and the appropriate formatting is
+ *  done as per the handout
  *
  *  @param str the string to be processed
  *  @param addr the memory address of the string
@@ -254,9 +261,10 @@ void get_string(char *str,void *addr)
 /** @brief traceback is the main routine that does the stack crawling
  *
  *  The function accespts uses an assembly function to get the current ebp,
- *  and then uses it to change stack frames, identify the function for each frame,
- *  extract the arguments, process them, and finally store the details in a buf,
- *  which is then written to the file pointer provided to traceback.
+ *  and then uses it to change stack frames, identify the function for each
+ *  frame, extract the arguments, process them, and finally store the
+ *  details in a buf, which is then written to the file pointer
+ *  provided to traceback.
  *
  *  @param fp the file to write the stack crawling information into.
  *  @return Void.

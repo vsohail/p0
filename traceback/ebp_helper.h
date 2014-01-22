@@ -9,8 +9,8 @@
 
 /** @brief ebp_addr gets the value of ebp, or address of the old ebp
  *
- *  The assembly instruction for this function just copies the value of ebp into
- *  the %eax and returns
+ *  The assembly instruction for this function just copies the value of ebp
+ *  into the %eax and returns
  *
  *  @param Void.
  *  @return void* the address of old ebp on stack
