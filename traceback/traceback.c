@@ -21,6 +21,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <stdarg.h>
+#include <errno.h>
 
 /*
  * The size used for the buffer.
@@ -225,7 +226,8 @@ void get_string(char *str,void *addr)
   int i,len;
   char *temp = str;
   for(i=0;;i++,temp+=1) {
-    if(write(0,temp,1)<0) {
+    write(0,temp,1);
+    if(errno==EFAULT) {
       str_join("%p",addr);
       return;
     }
